@@ -1,0 +1,6 @@
+name = "api-shuoweb"
+main = "src/index.py"
+compatibility_date = "2026-02-28"
+
+[build]
+upload = ["src"]
