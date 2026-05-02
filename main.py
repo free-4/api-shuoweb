@@ -8,6 +8,7 @@ class PrettyJSONResponse(JSONResponse):
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from api import phone
+from api import number
 
 app = FastAPI(docs_url=None, redoc_url=None, default_response_class=PrettyJSONResponse)
 
