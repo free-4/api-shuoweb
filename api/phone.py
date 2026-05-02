@@ -5,7 +5,7 @@ import os
 
 router = APIRouter()
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/phone.json")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "/data/phone.json")
 
 def load_phones():
     with open(DATA_PATH, "r", encoding="utf-8") as f:
