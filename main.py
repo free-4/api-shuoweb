@@ -20,6 +20,8 @@ app.add_middleware(
 
 app.include_router(phone.router, prefix="/phone", tags=["phone"])
 
+app.include_router(number.router, prefix="/number", tags=["number"])
+
 API_DOCS = [
     {
         "category": "Phone",
