@@ -1,9 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from api import phone
-from api import number
 import json
+import os
 
 class PrettyJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
@@ -18,9 +18,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(phone.router, prefix="/phone", tags=["phone"])
-app.include_router(number.router, prefix="/number", tags=["number"])
+# ── 计数器 ──────────────────────────────────────────
+COUNTER_FILE = "./data/counter.json"
 
+def load_counter():
+    if os.path.exists(COUNTER_FILE):
+        with open(COUNTER_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"total": 0, "phone": 0}
+
+def save_counter(c):
+    with open(COUNTER_FILE, "w", encoding="utf-8") as f:
+        json.dump(c, f, ensure_ascii=False)
+
+@app.middleware("http")
+async def count_requests(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code < 300 and request.url.path.startswith("/phone"):
+        c = load_counter()
+        c["total"] += 1
+        c["phone"] += 1
+        save_counter(c)
+    return response
+
+app.include_router(phone.router, prefix="/phone", tags=["phone"])
+
+@app.get("/stats")
+def get_stats():
+    return load_counter()
+
+# ── 文档数据 ────────────────────────────────────────
 API_DOCS = [
     {
         "category": "Phone",
@@ -86,7 +113,7 @@ HTML = """
   .base-url-box { margin-top: 36px; display: inline-flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; }
   .base-label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
   .base-url { font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--accent); }
-  .stats { display: flex; gap: 40px; margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--border); }
+  .stats { display: flex; gap: 40px; margin-top: 48px; padding-top: 40px; border-top: 1px solid var(--border); flex-wrap: wrap; }
   .stat-num { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: -1px; }
   .stat-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
   .section { padding: 64px 0; border-bottom: 1px solid var(--border); animation: fadeUp 0.6s ease both; }
@@ -113,7 +140,7 @@ HTML = """
   .copy-btn:hover { color: var(--accent); background: rgba(0,212,255,0.08); }
   footer { padding: 48px 0; text-align: center; color: var(--muted); font-size: 13px; }
   footer a { color: var(--accent); text-decoration: none; }
-  @media (max-width: 600px) { .stats { gap: 24px; flex-wrap: wrap; } .endpoint-desc { display: none; } .category-header { flex-direction: column; } }
+  @media (max-width: 600px) { .stats { gap: 24px; } .endpoint-desc { display: none; } .category-header { flex-direction: column; } }
 </style>
 </head>
 <body>
@@ -131,7 +158,11 @@ HTML = """
       <span class="base-label">Base URL</span>
       <span class="base-url">https://api.shuoweb.com</span>
     </div>
-    <div class="stats" id="stats"></div>
+    <div class="stats">
+      <div class="stat-item"><div class="stat-num" id="cnt-total">-</div><div class="stat-label">总请求次数</div></div>
+      <div class="stat-item"><div class="stat-num" id="cnt-phone">-</div><div class="stat-label">Phone 接口</div></div>
+      <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">免费无限制</div></div>
+    </div>
   </header>
   <main id="main"></main>
   <footer>
@@ -140,16 +171,19 @@ HTML = """
 </div>
 <script>
 const API_DOCS = __API_DOCS__;
-const totalEndpoints = API_DOCS.reduce((s, c) => s + c.endpoints.length, 0);
-document.getElementById('stats').innerHTML = `
-  <div class="stat-item"><div class="stat-num">${API_DOCS.length}</div><div class="stat-label">接口分类</div></div>
-  <div class="stat-item"><div class="stat-num">${totalEndpoints}</div><div class="stat-label">接口数量</div></div>
-  <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">免费无限制</div></div>
-`;
-const main = document.getElementById('main');
+
+fetch("https://api.shuoweb.com/stats")
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById("cnt-total").innerText = d.total.toLocaleString();
+    document.getElementById("cnt-phone").innerText = d.phone.toLocaleString();
+  })
+  .catch(() => {});
+
+const main = document.getElementById("main");
 API_DOCS.forEach((cat, ci) => {
-  const section = document.createElement('div');
-  section.className = 'section';
+  const section = document.createElement("div");
+  section.className = "section";
   section.style.animationDelay = `${ci * 0.1}s`;
   const endpoints = cat.endpoints.map((ep, ei) => `
     <div class="endpoint-card">
@@ -166,7 +200,7 @@ API_DOCS.forEach((cat, ci) => {
         </div>
       </div>
     </div>
-  `).join('');
+  `).join("");
   section.innerHTML = `
     <div class="category-header">
       <div>
@@ -179,15 +213,16 @@ API_DOCS.forEach((cat, ci) => {
   `;
   main.appendChild(section);
 });
+
 function toggle(ci, ei) {
-  document.getElementById(`detail-${ci}-${ei}`).classList.toggle('open');
+  document.getElementById(`detail-${ci}-${ei}`).classList.toggle("open");
 }
 function copy(e, text) {
   e.stopPropagation();
   navigator.clipboard.writeText(text).then(() => {
     const btn = e.target;
-    btn.textContent = '已复制';
-    setTimeout(() => btn.textContent = '复制', 1500);
+    btn.textContent = "已复制";
+    setTimeout(() => btn.textContent = "复制", 1500);
   });
 }
 </script>
