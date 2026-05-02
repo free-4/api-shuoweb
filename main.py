@@ -1,9 +1,15 @@
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+import json
+
+class PrettyJSONResponse(JSONResponse):
+    def render(self, content) -> bytes:
+        return json.dumps(content, ensure_ascii=False, indent=2).encode("utf-8")
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from api import phone
 
-app = FastAPI(docs_url=None, redoc_url=None)
+app = FastAPI(docs_url=None, redoc_url=None, default_response_class=PrettyJSONResponse)
 
 app.add_middleware(
     CORSMiddleware,
