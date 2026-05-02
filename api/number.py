@@ -66,7 +66,7 @@ class PhoneLocationQuery:
 def main():
     # 设置命令行参数解析
     parser = argparse.ArgumentParser(description="手机号归属地查询工具")
-    parser.add_argument("-d", "--data", default="data.json", help="指定 JSON 数据文件路径，默认值为 data.json")
+    parser.add_argument("-d", "--data", default="./data/number.json", help="指定 JSON 数据文件路径，默认值为 data.json")
     parser.add_argument("-p", "--phone", required=True, help="需要查询的 11 位手机号码")
     
     args = parser.parse_args()
