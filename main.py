@@ -1,23 +1,17 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from contextlib import asynccontextmanager
 from api import phone
 from api import history
+import httpx
+import asyncio
 import json
 import os
 
 class PrettyJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
         return json.dumps(content, ensure_ascii=False, indent=2).encode("utf-8")
-
-app = FastAPI(docs_url=None, redoc_url=None, default_response_class=PrettyJSONResponse)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # ── 计数器 ──────────────────────────────────────────
 COUNTER_FILE = "./data/counter.json"
@@ -26,27 +20,51 @@ def load_counter():
     if os.path.exists(COUNTER_FILE):
         with open(COUNTER_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"total": 0, "phone": 0, "history": 0}
+    return {"total": 0}
 
 def save_counter(c):
     with open(COUNTER_FILE, "w", encoding="utf-8") as f:
         json.dump(c, f, ensure_ascii=False)
 
+# ── 心跳 ────────────────────────────────────────────
+async def self_ping():
+    await asyncio.sleep(60)
+    while True:
+        try:
+            async with httpx.AsyncClient() as client:
+                await client.get("https://api.shuoweb.com/", timeout=10)
+        except:
+            pass
+        await asyncio.sleep(840)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(self_ping())
+    yield
+
+app = FastAPI(docs_url=None, redoc_url=None,
+              default_response_class=PrettyJSONResponse,
+              lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── 请求计数中间件 ───────────────────────────────────
 @app.middleware("http")
 async def count_requests(request: Request, call_next):
     response = await call_next(request)
-    if response.status_code < 300:
-        path = request.url.path
-        if path.startswith("/phone"):
-            c = load_counter()
-            c["total"] += 1
-            c["phone"] += 1
-            save_counter(c)
-        elif path.startswith("/history"):
-            c = load_counter()
-            c["total"] += 1
-            c["history"] += 1
-            save_counter(c)
+    path = request.url.path
+    # 只统计 API 接口，排除首页和 stats
+    if response.status_code < 300 and (
+        path.startswith("/phone") or path.startswith("/history")
+    ):
+        c = load_counter()
+        c["total"] += 1
+        save_counter(c)
     return response
 
 app.include_router(phone.router, prefix="/phone", tags=["phone"])
@@ -187,9 +205,8 @@ HTML = """
       <span class="base-url">https://api.shuoweb.com</span>
     </div>
     <div class="stats">
-      <div class="stat-item"><div class="stat-num" id="cnt-total">-</div><div class="stat-label">总请求次数</div></div>
-      <div class="stat-item"><div class="stat-num" id="cnt-phone">-</div><div class="stat-label">Phone 接口</div></div>
-      <div class="stat-item"><div class="stat-num" id="cnt-history">-</div><div class="stat-label">History 接口</div></div>
+      <div class="stat-item"><div class="stat-num" id="cnt-total">-</div><div class="stat-label">总调用次数</div></div>
+      <div class="stat-item"><div class="stat-num">2</div><div class="stat-label">接口分类</div></div>
       <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">免费无限制</div></div>
     </div>
   </header>
@@ -205,8 +222,6 @@ fetch("https://api.shuoweb.com/stats")
   .then(r => r.json())
   .then(d => {
     document.getElementById("cnt-total").innerText = d.total.toLocaleString();
-    document.getElementById("cnt-phone").innerText = d.phone.toLocaleString();
-    document.getElementById("cnt-history").innerText = d.history.toLocaleString();
   })
   .catch(() => {});
 
