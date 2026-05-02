@@ -18,24 +18,24 @@ API_DOCS = [
     {
         "category": "Phone",
         "prefix": "/phone",
-        "description": "手机设备信息接口，包含品牌、型号、系统、硬件参数等数据。",
+        "description": "手机设备信息接口，随机返回一个手机型号及完整硬件参数。",
         "endpoints": [
             {
                 "method": "GET",
                 "path": "/phone/",
-                "description": "获取全部手机列表",
+                "description": "随机返回一个手机型号",
                 "example": "https://api.shuoweb.com/phone/"
             },
             {
                 "method": "GET",
                 "path": "/phone/search?brand=Apple",
-                "description": "按品牌筛选，支持 brand 和 os 两个参数",
+                "description": "从指定品牌或系统中随机返回一个，支持 brand 和 os 参数",
                 "example": "https://api.shuoweb.com/phone/search?brand=Apple"
             },
             {
                 "method": "GET",
                 "path": "/phone/{model}",
-                "description": "按型号查询单个设备详情",
+                "description": "按型号查询指定设备详情",
                 "example": "https://api.shuoweb.com/phone/iPhone 15 Pro"
             }
         ]
