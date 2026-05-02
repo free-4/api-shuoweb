@@ -434,7 +434,7 @@ HTML = """
   </main>
 
   <footer>
-    <p>© 2024 <a href="https://shuoweb.com">ShuoWeb</a> · 所有接口免费开放 · 支持跨域</p>
+    <p>© 2026 <a href="https://shuoweb.com">ShuoWeb</a> · 所有接口免费开放 · 支持跨域</p>
   </footer>
 </div>
 
