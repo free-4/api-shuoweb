@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from api import phone
+from api import history
 import json
 import os
 
@@ -25,7 +26,7 @@ def load_counter():
     if os.path.exists(COUNTER_FILE):
         with open(COUNTER_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    return {"total": 0, "phone": 0}
+    return {"total": 0, "phone": 0, "history": 0}
 
 def save_counter(c):
     with open(COUNTER_FILE, "w", encoding="utf-8") as f:
@@ -34,14 +35,22 @@ def save_counter(c):
 @app.middleware("http")
 async def count_requests(request: Request, call_next):
     response = await call_next(request)
-    if response.status_code < 300 and request.url.path.startswith("/phone"):
-        c = load_counter()
-        c["total"] += 1
-        c["phone"] += 1
-        save_counter(c)
+    if response.status_code < 300:
+        path = request.url.path
+        if path.startswith("/phone"):
+            c = load_counter()
+            c["total"] += 1
+            c["phone"] += 1
+            save_counter(c)
+        elif path.startswith("/history"):
+            c = load_counter()
+            c["total"] += 1
+            c["history"] += 1
+            save_counter(c)
     return response
 
 app.include_router(phone.router, prefix="/phone", tags=["phone"])
+app.include_router(history.router, prefix="/history", tags=["history"])
 
 @app.get("/stats")
 def get_stats():
@@ -71,6 +80,25 @@ API_DOCS = [
                 "path": "/phone/{model}",
                 "description": "按型号查询指定设备详情",
                 "example": "https://api.shuoweb.com/phone/iPhone 15 Pro"
+            }
+        ]
+    },
+    {
+        "category": "History",
+        "prefix": "/history",
+        "description": "历史上的今天接口，返回当天或指定日期发生的历史事件。",
+        "endpoints": [
+            {
+                "method": "GET",
+                "path": "/history/",
+                "description": "返回今天的历史事件",
+                "example": "https://api.shuoweb.com/history/"
+            },
+            {
+                "method": "GET",
+                "path": "/history/{date}",
+                "description": "查询指定日期的历史事件，格式 MM-DD",
+                "example": "https://api.shuoweb.com/history/01-10"
             }
         ]
     }
@@ -161,6 +189,7 @@ HTML = """
     <div class="stats">
       <div class="stat-item"><div class="stat-num" id="cnt-total">-</div><div class="stat-label">总请求次数</div></div>
       <div class="stat-item"><div class="stat-num" id="cnt-phone">-</div><div class="stat-label">Phone 接口</div></div>
+      <div class="stat-item"><div class="stat-num" id="cnt-history">-</div><div class="stat-label">History 接口</div></div>
       <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">免费无限制</div></div>
     </div>
   </header>
@@ -177,6 +206,7 @@ fetch("https://api.shuoweb.com/stats")
   .then(d => {
     document.getElementById("cnt-total").innerText = d.total.toLocaleString();
     document.getElementById("cnt-phone").innerText = d.phone.toLocaleString();
+    document.getElementById("cnt-history").innerText = d.history.toLocaleString();
   })
   .catch(() => {});
 
