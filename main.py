@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
 from api import phone
 from api import history
+from api import quote
 import httpx
 import asyncio
 import json
@@ -58,17 +59,19 @@ app.add_middleware(
 async def count_requests(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
-    # 只统计 API 接口，排除首页和 stats
+    # 统计 API 接口，排除首页和stats，现在加入 /quote
     if response.status_code < 300 and (
-        path.startswith("/phone") or path.startswith("/history")
+        path.startswith("/phone") or path.startswith("/history") or path.startswith("/quote")
     ):
         c = load_counter()
         c["total"] += 1
         save_counter(c)
     return response
-
+    
+# 注册路由
 app.include_router(phone.router, prefix="/phone", tags=["phone"])
 app.include_router(history.router, prefix="/history", tags=["history"])
+app.include_router(quote.router, prefix="/quote", tags=["quote"])   # 新增
 
 @app.get("/stats")
 def get_stats():
@@ -118,6 +121,16 @@ API_DOCS = [
                 "description": "查询指定日期的历史事件，格式 MM-DD",
                 "example": "https://api.shuoweb.com/history/01-10"
             }
+        ]
+    },
+        # ── 新增 Quote 分类 ──
+    {
+        "category": "Quote",
+        "prefix": "/quote",
+        "description": "随机一句接口，返回名人名言或经典语录。",
+        "endpoints": [
+            { "method": "GET", "path": "/quote/", "description": "随机返回一句名言", "example": "https://api.shuoweb.com/quote/" },
+            { "method": "GET", "path": "/quote/?author=爱因斯坦", "description": "按作者筛选随机一句", "example": "https://api.shuoweb.com/quote/?author=爱因斯坦" }
         ]
     }
 ]
