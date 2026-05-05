@@ -130,7 +130,7 @@ API_DOCS = [
         "description": "随机一句接口，返回名人名言或经典语录。",
         "endpoints": [
             { "method": "GET", "path": "/quote/", "description": "随机返回一句名言", "example": "https://api.shuoweb.com/quote/" },
-            { "method": "GET", "path": "/quote/?author=爱因斯坦", "description": "按作者筛选随机一句", "example": "https://api.shuoweb.com/quote/?author=爱因斯坦" }
+            { "method": "GET", "path": "/quote/?author=爱因斯坦", "description": "按作者筛选随机一句", "example": "https://api.shuoweb.com/quote/?author=孔子" }
         ]
     }
 ]
